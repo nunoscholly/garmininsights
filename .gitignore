@@ -43,3 +43,6 @@ next-env.d.ts
 
 # superpowers
 .superpowers/
+
+# Python venv
+.venv/
