@@ -2,6 +2,10 @@
 import os
 import json
 import psycopg
+from psycopg.types.json import Jsonb
+
+def _jb(x):
+    return Jsonb(x) if x is not None else None
 
 def _db():
     return psycopg.connect(os.environ["DATABASE_URL"])
@@ -18,9 +22,9 @@ def shape_daily_wellness(user_id: int, date: str, payload: dict) -> dict:
         "body_battery_max": payload.get("bodyBatteryHighestValue"),
         "body_battery_wake": payload.get("bodyBatteryAtWakeTime"),
         "body_battery_sleep": payload.get("bodyBatteryDuringSleep"),
-        "body_battery_curve": payload.get("bodyBatteryValuesArray"),
+        "body_battery_curve": _jb(payload.get("bodyBatteryValuesArray")),
         "stress_avg": payload.get("averageStressLevel"),
-        "stress_curve": payload.get("stressValuesArray"),
+        "stress_curve": _jb(payload.get("stressValuesArray")),
         "steps": payload.get("totalSteps"),
         "calories_total": payload.get("totalKilocalories"),
         "calories_active": payload.get("activeKilocalories"),
@@ -47,7 +51,7 @@ def shape_sleep(user_id: int, date: str, payload: dict) -> dict:
         "avg_resp_rate": s.get("averageRespirationValue"),
         "avg_spo2": s.get("averageSpO2Value"),
         "garmin_sleep_score": (s.get("sleepScores") or {}).get("overall", {}).get("value"),
-        "raw_summary": payload,
+        "raw_summary": _jb(payload),
     }
 
 def shape_training_status(user_id: int, date: str, payload: dict) -> dict:
@@ -59,7 +63,7 @@ def shape_training_status(user_id: int, date: str, payload: dict) -> dict:
         "chronic_load": (payload.get("acwr") or {}).get("chronicLoad"),
         "vo2_max": payload.get("vo2Max"),
         "recovery_time_hours": payload.get("recoveryTime"),
-        "race_predictor": payload.get("racePredictor"),
+        "race_predictor": _jb(payload.get("racePredictor")),
     }
 
 def shape_activity(user_id: int, payload: dict) -> dict:
@@ -78,7 +82,7 @@ def shape_activity(user_id: int, payload: dict) -> dict:
         "training_effect_anaerobic": a.get("anaerobicTrainingEffect"),
         "training_load": a.get("activityTrainingLoad"),
         "vo2_max_at_time": a.get("vO2MaxValue"),
-        "raw_summary": a,
+        "raw_summary": _jb(a),
     }
 
 # ---------- upserters ----------
@@ -89,7 +93,7 @@ def persist_daily_wellness(user_id, date, payload):
 
 def persist_sleep(user_id, date, payload):
     row = shape_sleep(user_id, date, payload)
-    _upsert("sleep_sessions", {**row, "raw_summary": json.dumps(row["raw_summary"])}, conflict_col="date")
+    _upsert("sleep_sessions", row, conflict_col="date")
 
 def persist_training_status(user_id, date, payload):
     row = shape_training_status(user_id, date, payload)
@@ -97,13 +101,12 @@ def persist_training_status(user_id, date, payload):
 
 def persist_activity(user_id, payload) -> str:
     row = shape_activity(user_id, payload)
-    row["raw_summary"] = json.dumps(row["raw_summary"])
     _upsert("activities", row, conflict_col="id")
     return row["id"]
 
 def persist_activity_samples(activity_id: str, samples_payload: dict) -> None:
     _upsert("activity_samples",
-            {"activity_id": activity_id, "samples": json.dumps(samples_payload)},
+            {"activity_id": activity_id, "samples": _jb(samples_payload)},
             conflict_col="activity_id")
 
 def _upsert(table: str, row: dict, conflict_col: str):

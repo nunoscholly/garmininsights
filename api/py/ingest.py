@@ -74,9 +74,21 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(body).encode())
 
+    def _authorized(self) -> bool:
+        secret = os.environ.get("CRON_SECRET", "")
+        expected = f"Bearer {secret}"
+        got = self.headers.get("Authorization", "")
+        return bool(secret.strip()) and got == expected
+
     def do_GET(self):  # used by cron (GET against /api/ingest/sync proxies here)
+        if not self._authorized():
+            self._send(401, {"error": "unauthorized"})
+            return
         mode = parse_qs(urlparse(self.path).query).get("mode", ["daily"])[0]
         self._send(200, _ingest(mode))
 
     def do_POST(self):  # used by UI sync button
+        if not self._authorized():
+            self._send(401, {"error": "unauthorized"})
+            return
         self._send(200, _ingest("manual"))
