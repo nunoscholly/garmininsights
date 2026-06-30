@@ -11,9 +11,12 @@ export function SyncButton({ lastRunAt, ok }: { lastRunAt: string | null; ok: bo
 
   async function onClick() {
     setBusy(true);
-    await fetch("/api/ingest/sync", { method: "POST" });
-    setBusy(false);
-    router.refresh();
+    try {
+      await fetch("/api/ingest/sync", { method: "POST" });
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
   }
 
   return (
