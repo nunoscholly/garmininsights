@@ -62,6 +62,25 @@ def shape_training_status(user_id: int, date: str, payload: dict) -> dict:
         "race_predictor": payload.get("racePredictor"),
     }
 
+def shape_activity(user_id: int, payload: dict) -> dict:
+    a = payload
+    return {
+        "id": str(a["activityId"]),
+        "user_id": user_id,
+        "start_ts": a.get("startTimeGMT"),
+        "type": (a.get("activityType") or {}).get("typeKey", "other"),
+        "duration_sec": int(a.get("duration") or 0),
+        "distance_m": a.get("distance"),
+        "avg_hr": a.get("averageHR"),
+        "max_hr": a.get("maxHR"),
+        "calories": a.get("calories"),
+        "training_effect_aerobic": a.get("aerobicTrainingEffect"),
+        "training_effect_anaerobic": a.get("anaerobicTrainingEffect"),
+        "training_load": a.get("activityTrainingLoad"),
+        "vo2_max_at_time": a.get("vO2MaxValue"),
+        "raw_summary": a,
+    }
+
 # ---------- upserters ----------
 
 def persist_daily_wellness(user_id, date, payload):
@@ -75,6 +94,17 @@ def persist_sleep(user_id, date, payload):
 def persist_training_status(user_id, date, payload):
     row = shape_training_status(user_id, date, payload)
     _upsert("training_status", row, conflict_col="date")
+
+def persist_activity(user_id, payload) -> str:
+    row = shape_activity(user_id, payload)
+    row["raw_summary"] = json.dumps(row["raw_summary"])
+    _upsert("activities", row, conflict_col="id")
+    return row["id"]
+
+def persist_activity_samples(activity_id: str, samples_payload: dict) -> None:
+    _upsert("activity_samples",
+            {"activity_id": activity_id, "samples": json.dumps(samples_payload)},
+            conflict_col="activity_id")
 
 def _upsert(table: str, row: dict, conflict_col: str):
     cols = list(row.keys())

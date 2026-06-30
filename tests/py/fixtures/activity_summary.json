@@ -1,0 +1,16 @@
+{
+  "activityId": 1234567890,
+  "startTimeGMT": "2026-06-29T07:15:00Z",
+  "activityType": {
+    "typeKey": "running"
+  },
+  "duration": 2400,
+  "distance": 10000.5,
+  "averageHR": 155,
+  "maxHR": 185,
+  "calories": 875,
+  "aerobicTrainingEffect": 3.2,
+  "anaerobicTrainingEffect": 0.5,
+  "activityTrainingLoad": 85.0,
+  "vO2MaxValue": 55.0
+}

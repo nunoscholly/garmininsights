@@ -32,3 +32,13 @@ def test_training_status_shape():
         payload=load("training_status_2026-06-29.json"),
     )
     assert row["status"] in {"productive", "maintaining", "strained", "peaking", "detraining", "unproductive", "overreaching", "recovery", None}
+
+def test_activity_shape():
+    row = _persist.shape_activity(
+        user_id=1,
+        payload=load("activity_summary.json"),
+    )
+    assert row["id"]
+    assert row["type"]
+    assert row["duration_sec"] > 0
+    assert row["avg_hr"] is None or 30 < row["avg_hr"] < 220

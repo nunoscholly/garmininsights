@@ -8,6 +8,7 @@ import psycopg
 from _garth_client import load_client
 from _persist import (
     persist_daily_wellness, persist_sleep, persist_training_status,
+    persist_activity, persist_activity_samples,
 )
 
 USER_ID = 1
@@ -45,6 +46,23 @@ def _ingest(mode: str):
                 persist(USER_ID, ds, payload)
             except Exception as e:
                 errors.append({"date": ds, "endpoint": name, "error": str(e), "trace": traceback.format_exc()})
+
+    try:
+        activities = client.connectapi(
+            "/activitylist-service/activities/search/activities?start=0&limit=20"
+        )
+        for a in activities:
+            aid = persist_activity(USER_ID, a)
+            # samples (HR/pace/etc.)
+            try:
+                samples = client.connectapi(
+                    f"/activity-service/activity/{aid}/details?maxChartSize=2000&maxPolylineSize=4000"
+                )
+                persist_activity_samples(aid, samples)
+            except Exception as e:
+                errors.append({"activity_id": aid, "endpoint": "samples", "error": str(e)})
+    except Exception as e:
+        errors.append({"endpoint": "activities_list", "error": str(e)})
 
     _record_run(mode, ok=not errors, errors=errors or None)
     return {"ok": not errors, "errors": errors}
