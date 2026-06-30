@@ -1,0 +1,12 @@
+[project]
+name = "garmininsights-ingest"
+version = "0.0.1"
+requires-python = ">=3.13"
+dependencies = [
+  "garth>=0.4.46",
+  "psycopg[binary]>=3.2",
+  "cryptography>=43.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24"]
