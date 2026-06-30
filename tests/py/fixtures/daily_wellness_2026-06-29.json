@@ -1,0 +1,18 @@
+{
+  "restingHeartRate": 52,
+  "maxHeartRate": 178,
+  "bodyBatteryLowestValue": 12,
+  "bodyBatteryHighestValue": 87,
+  "bodyBatteryAtWakeTime": 74,
+  "bodyBatteryDuringSleep": 36,
+  "bodyBatteryValuesArray": [[1751155200000, 74], [1751158800000, 68], [1751162400000, 60]],
+  "averageStressLevel": 28,
+  "stressValuesArray": [[1751155200000, 25], [1751158800000, 30], [1751162400000, 28]],
+  "totalSteps": 8500,
+  "totalKilocalories": 2350,
+  "activeKilocalories": 520,
+  "moderateIntensityMinutes": 22,
+  "vigorousIntensityMinutes": 8,
+  "floorsAscended": 6,
+  "averageSpo2": 97
+}

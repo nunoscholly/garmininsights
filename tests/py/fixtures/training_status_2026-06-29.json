@@ -1,0 +1,14 @@
+{
+  "trainingStatus": {
+    "statusKey": "productive"
+  },
+  "acwr": {
+    "acuteLoad": 250.0,
+    "chronicLoad": 200.0
+  },
+  "vo2Max": 55.0,
+  "recoveryTime": 24,
+  "racePredictor": {
+    "fiveK": 1300
+  }
+}
