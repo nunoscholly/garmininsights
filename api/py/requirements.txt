@@ -1,0 +1,7 @@
+# Runtime deps for the Vercel Python functions in this directory (api/py/*.py).
+# Kept in lockstep with pyproject.toml. garth is exact-pinned because it is
+# unmaintained and its OAuth token dataclasses must match the version that
+# bootstrap_garmin.py used to write the encrypted tokens into Neon.
+garth==0.8.0
+psycopg[binary]>=3.2
+cryptography>=43.0

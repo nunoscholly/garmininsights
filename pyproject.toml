@@ -3,7 +3,7 @@ name = "garmininsights-ingest"
 version = "0.0.1"
 requires-python = ">=3.13"
 dependencies = [
-  "garth>=0.4.46",
+  "garth==0.8.0",  # pinned: garth is unmaintained; exact pin keeps local bootstrap and Vercel token formats in lockstep
   "psycopg[binary]>=3.2",
   "cryptography>=43.0",
 ]
