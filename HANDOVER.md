@@ -2,13 +2,15 @@
 
 Personal Whoop-style analytics dashboard on top of Garmin Connect data (Forerunner 945). Single user. Free tier.
 
-## Current State
+## Current State: LIVE ✅ (2026-07-02)
 
-- **Branch:** `feat/garmininsights-mvp` (not merged to `main`, not pushed to remote yet)
-- **Repo:** https://github.com/nunoscholly/garmininsights
-- **Vercel project:** `nuno-schollmayers-projects-48d1f4fd/garmininsights` (linked, but no deploys yet)
-- **Neon DB:** project `round-silence-25618427`, schema applied (10 tables — see `db/schema.ts`)
-- **19 commits** on the branch — clean history, one commit per plan task + a few chores/fixes
+**Production: https://garmininsights.vercel.app** — deployed, Garmin connected, first sync succeeded (`{"ok":true,"errors":[]}`), all dashboards populated with real data.
+
+- **Branch:** everything merged to `main` and pushed; feature branch deleted
+- **Repo:** https://github.com/nunoscholly/garmininsights (GitHub → Vercel integration active: **every push to `main` auto-deploys production**)
+- **Vercel project:** `nuno-schollmayers-projects-48d1f4fd/garmininsights`
+- **Neon DB:** project `round-silence-25618427`, 10 tables (see `db/schema.ts`), holding real data since 2026-07-01
+- **Daily cron:** registered and verified (`vercel crons ls`) — `0 7 * * *` UTC ≈ 09:00 Berlin CEST
 
 ## Architecture (30 sec version)
 
@@ -18,65 +20,47 @@ Next.js 16 App Router (Vercel)  ──reads──▶  Neon Postgres  ◀──wr
                                                             AES-GCM tokens in DB)
 ```
 
-- **No auth.** Personal use, URL is obscure. Ingest endpoint is protected by `CRON_SECRET`.
-- **Cron:** `0 7 * * *` UTC (≈ 09:00 Berlin CEST / 08:00 CET) via `vercel.ts` — hits `/api/ingest/sync?mode=daily`
-- **Manual sync:** button in UI header
+- **No auth.** Personal use, URL is obscure. Credential-touching endpoints (`/api/py/ingest`, `/api/py/connect`) gated by `CRON_SECRET` bearer token.
+- **Manual sync:** button in UI header, or the "Sync now" button on `/connect`.
+- **Garmin login:** `/connect` page (access code = `CRON_SECRET`); tokens auto-refresh. Terminal fallback: `scripts/bootstrap_garmin.py` (only needed if Garmin throws an MFA/verification challenge at the server IP).
 
-## Deploy status — Phase progress
+## Daily operation — nothing to do
 
-| Phase | Task | Status |
-|---|---|---|
-| A | Vercel link + Neon + env vars + migration | ✅ done |
-| B | Open `<url>/connect`, enter access code (CRON_SECRET) + Garmin credentials; fallback: `python scripts/bootstrap_garmin.py` when Garmin throws an MFA/verification challenge | 🟡 **user still needs to do** |
-| C | `vercel deploy` then `vercel deploy --prod` | ⏳ pending Phase B |
+- Cron pulls today + yesterday (wellness, sleep, training status) plus the latest 20 activities each morning.
+- Tokens auto-refresh on every sync. Re-login via `/connect` only if Garmin invalidates them (rare).
+- Cron drifts 1h between summer/winter (Vercel cron is UTC-only). Documented in `vercel.ts`.
 
-## To resume
+## If something breaks
 
-### If Phase B is not yet done
-
-**Primary path — web form:**
-1. Deploy a preview (`vercel deploy`) or run `vercel dev`.
-2. Open `<preview-url>/connect` in the browser.
-3. Enter the access code (value of `CRON_SECRET` from `.env.local`) and your Garmin email + password.
-4. On success the page shows "Connected" and a "Sync now" button — click it to verify tokens work.
-
-**Fallback — script (use when Garmin issues an MFA/verification challenge):**
-```bash
-cd /Users/nunoschollmayer/Documents/GitHub/garmininsights
-source .venv/bin/activate
-set -a; source .env.local; set +a
-python scripts/bootstrap_garmin.py
-# → Garmin email → password → MFA code → "OK: wrote tokens for user_id=1"
-```
-
-### Then deploy
-
-```bash
-export PATH="$HOME/.npm-global/bin:$PATH"
-
-# preview
-vercel deploy
-# → open preview URL, click "sync now", verify pages populate
-
-# production
-vercel deploy --prod
-
-# confirm daily cron scheduled
-vercel cron list
-```
-
-### If something breaks
-
-1. Check the latest ingest run:
+1. Latest ingest result: `curl https://garmininsights.vercel.app/api/ingest/status`
+2. Detailed errors land in `ingest_runs` (Neon): `SELECT * FROM ingest_runs ORDER BY started_at DESC LIMIT 10;` — each error records date, endpoint, message, and traceback.
+3. Runtime logs: `vercel logs https://garmininsights.vercel.app` or the Vercel dashboard.
+4. Trigger a manual sync from the shell:
    ```bash
-   curl https://<prod-domain>/api/ingest/status
+   curl -X POST "https://garmininsights.vercel.app/api/ingest/sync?mode=manual"
    ```
-2. Check ingest_runs errors in Neon (`SELECT * FROM ingest_runs ORDER BY started_at DESC LIMIT 10;`)
-3. Test the Python handler locally:
+5. Probe Garmin payloads locally with the stored tokens (extremely useful — this is how all payload bugs were found):
    ```bash
-   vercel dev
-   curl -X POST -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/py/ingest
+   cd /Users/nunoschollmayer/Documents/GitHub/garmininsights
+   set -a; source .env.local; set +a
+   .venv/bin/python -c "
+   import sys; sys.path.insert(0, 'api/py')
+   from _garth_client import load_client
+   c = load_client(1)
+   print(c.connectapi('/usersummary-service/usersummary/daily/' + c.profile['displayName'] + '?calendarDate=2026-07-01'))"
    ```
+
+## Deploy-time lessons (hard-won, don't rediscover)
+
+1. **`vercel.ts` functions config:** never set `runtime:` for Python — that field is community-runtimes-only (`name@version`); Python is auto-detected. Setting it fails the build with "Function Runtimes must have a valid version."
+2. **Vercel Python runtime does NOT put the entrypoint's dir on `sys.path`** — sibling imports (`_token_store`, `_garth_client`…) need the explicit `sys.path.insert` at the top of each entrypoint (`ingest.py`, `connect.py`). Local tests mask this because `tests/py/conftest.py` adds the path.
+3. **Server-to-server fetches must NOT use `VERCEL_URL`** — it's the deployment-specific domain, which Vercel deployment protection intercepts with an SSO HTML page. Use `VERCEL_PROJECT_PRODUCTION_URL` (public alias). See `app/api/ingest/sync/route.ts`.
+4. **Garmin API realities** (verified against live API 2026-07-01):
+   - User-scoped endpoints want `client.profile["displayName"]` (a UUID) in the URL — a numeric id returns a shell of nulls, not an error.
+   - Wellness curves (stress + body battery) come from `/wellness-service/wellness/dailyStress/{date}`, merged into the usersummary payload in `ingest.py`.
+   - Training status: `/metrics-service/metrics/trainingstatus/aggregated/{date}` — per-device nesting under `mostRecentTrainingStatus.latestTrainingStatusData.{deviceId}`; status phrase (`RECOVERY_BALANCED`) is normalized to StatusPill keys (`recovery`) in `shape_training_status`.
+   - All Garmin timestamps are epoch millis → converted via `_ms_to_dt` in `_persist.py`.
+5. **`api/py/requirements.txt` is load-bearing** — Vercel installs Python deps from it. Keep in lockstep with `pyproject.toml`. `garth==0.8.0` is exact-pinned (unmaintained lib; token dataclass format must match what's stored in the DB).
 
 ## Environment variables
 
@@ -84,17 +68,17 @@ Live on Vercel (all 3 envs — production/preview/development):
 
 - `DATABASE_URL` — Neon pooled connection string
 - `GARMIN_TOKEN_KEY` — 32-byte hex, encrypts garth OAuth tokens at rest
-- `CRON_SECRET` — 32-byte hex, gates `/api/py/ingest` via `Authorization: Bearer` header
+- `CRON_SECRET` — 32-byte hex; gates ingest + connect endpoints; doubles as the `/connect` access code
 
 Local: `.env.local` (pulled from Vercel via `vercel env pull`).
 
-Regen either secret:
+Rotate a secret:
 ```bash
 NEW=$(openssl rand -hex 32)
 echo $NEW | vercel env add GARMIN_TOKEN_KEY production --force
 # repeat for preview, development, then vercel env pull .env.local
 ```
-**If you rotate GARMIN_TOKEN_KEY, you must also re-run `bootstrap_garmin.py`** — old tokens can't be decrypted.
+**If you rotate `GARMIN_TOKEN_KEY`, reconnect Garmin afterwards** (via `/connect`) — old tokens can't be decrypted.
 
 ## File map
 
@@ -104,20 +88,20 @@ app/                          Next.js pages
   training/                   Training + activity detail
   sleep/                      Sleep dashboard
   wellness/                   30d trends: RHR, BB wake, steps, calories, stress
-  api/ingest/sync/route.ts    Proxy → Python handler (adds CRON_SECRET)
+  connect/page.tsx            Gated Garmin login form + manual sync trigger
+  api/ingest/sync/route.ts    Proxy → Python handler (adds CRON_SECRET; uses public prod URL)
   api/ingest/status/route.ts  Latest ingest_run row for the "last sync" indicator
   api/connect/status/route.ts Token presence check (connected + last_refreshed_at)
   layout.tsx                  Nav + sync button, no auth wrapping
-  connect/page.tsx            Gated Garmin login form + manual sync trigger
 
-api/py/                       Python Vercel Functions (python 3.13)
+api/py/                       Python Vercel Functions
   ingest.py                   Main handler: CRON_SECRET check → _ingest(mode)
-  connect.py                  POST handler: CRON_SECRET gate → garth login → store tokens
+  connect.py                  POST: CRON_SECRET gate → garth login → store tokens
   _token_store.py             Shared encrypted-token write path (bootstrap + /connect)
   _garth_client.py            Load/refresh garth OAuth tokens from DB
-  _persist.py                 Shapers + Jsonb-wrapped upserts
+  _persist.py                 Shapers (verified against real payloads) + Jsonb upserts
   _crypto.py                  AES-GCM for token storage
-  requirements.txt            Load-bearing for Vercel deploy (Python deps installed from it)
+  requirements.txt            Load-bearing for deploy (Python deps installed from it)
 
 db/
   schema.ts                   10 tables (Drizzle)
@@ -128,61 +112,53 @@ components/
   cards/                      hero-number, metric-card, status-pill, sync-button
   charts/                     body-battery-curve, sleep-stages-bar, weekly-load-bar,
                               trend-line, consistency-heatmap
-  nav/side-nav.tsx            Fixed sidebar
+  nav/side-nav.tsx            Fixed sidebar (/connect intentionally unlinked)
   theme/metric-colors.ts      Per-metric color tokens
 
 lib/                          env, dates (Europe/Berlin), format helpers
 scripts/
-  bootstrap_garmin.py         One-time interactive Garmin login (user gate)
+  bootstrap_garmin.py         Terminal Garmin login (MFA fallback only)
 
-tests/py/                     Pytest for _persist shape functions (synthetic fixtures)
+tests/py/                     Pytest: shapers, token store, connect endpoint (17 tests)
+                              training_status fixture = recorded real payload shape
 
 docs/superpowers/
-  specs/2026-06-30-*.md       Design spec
-  plans/2026-06-30-*.md       Task-by-task implementation plan
+  specs/2026-06-30-*.md       Original platform design spec
+  specs/2026-07-01-*.md       /connect page design spec
+  plans/                      Task-by-task implementation plans for both
 ```
 
-## Known follow-ups (recorded during final review, not blockers)
+## Known follow-ups (not blockers)
 
-**Should fix once you have real data flowing:**
-
-- **Activity HR chart is empty.** The page expects `samples.samples.{ts, hr}` arrays but ingestion stores Garmin's raw `metricDescriptors + activityDetailMetrics` shape. Fix: derive `ts[]`/`hr[]` in the ingest persistence step (or in the page render). Activity detail was a low-priority v1 feature — Garmin Connect already does activities well.
-
-- **`training_status` endpoint URL is a best-guess** (`/metrics-service/metrics/maxmet/latest/{USER_ID}`). If `ingest_runs.errors` shows a 404 on this endpoint, grab the real URL from your Garmin Connect web-app network tab and update `api/py/ingest.py`.
-
-- **Synthetic fixtures.** `tests/py/fixtures/*.json` are placeholder shapes, not recorded payloads. After first successful sync, replace with real samples so tests catch actual drift.
-
-**Nice-to-have:**
-
-- Queries don't filter by `user_id` yet (single-user assumption). Add if you ever open this up.
-- `pyproject.toml` has no upper bound on garth — if it breaks, pin to `~=0.4`.
-- `emailAddresses[0]` was in an earlier Clerk version — now n/a since Clerk was removed.
-- Cron drifts by 1h between summer/winter (Vercel cron is UTC-only). Documented in `vercel.ts`.
+- **Activity HR chart is empty** on activity detail pages. The page expects `samples.samples.{ts, hr}` arrays but ingestion stores Garmin's raw `metricDescriptors + activityDetailMetrics` shape. Fix: derive `ts[]`/`hr[]` in ingest persistence or page render. Low priority — Garmin Connect does activity detail well.
+- **Remaining synthetic fixtures**: `daily_wellness`, `sleep`, `activity_summary` fixtures are still hand-written (though shapes verified against live API). `training_status` fixture is already real.
+- **`training_status` chronic_load / recovery_time / race_predictor columns are always NULL** — the aggregated endpoint doesn't carry them; find endpoints if ever wanted.
+- Queries don't filter by `user_id` (single-user assumption).
+- Vercel builds with Python 3.12 despite `requires-python >= 3.13` (harmless — matches local venv; add a `.python-version` to pin explicitly if desired).
+- Deferred review minors: constant-time secret compare (`hmac.compare_digest`) for both endpoints; `autoComplete` hints on the /connect form; try/catch on status route DB call; `store_tokens` lacks a DB-fixture test.
 
 ## v2 candidates (deferred from spec, not implemented)
 
-- **Custom Recovery %**, **custom Strain** — spec deferred these; we use Garmin's native scores (Body Battery, Sleep Score, Training Load, Training Status) instead.
-- **Journal** (log alcohol/caffeine/stress → correlate with next-day recovery). Table `journal_entries` already exists in schema, unused.
+- **Custom Recovery %**, **custom Strain** — using Garmin's native scores instead (Body Battery, Sleep Score, Training Load, Training Status).
+- **Journal** (log alcohol/caffeine/stress → correlate with next-day recovery). Table `journal_entries` exists in schema, unused.
 - **Correlation insights / trends page.** Table `daily_scores` reserved for this.
 
 ## Where to look for context
 
-- **Spec** (why decisions were made): `docs/superpowers/specs/2026-06-30-garmin-personal-platform-design.md`
-- **Plan** (task-by-task): `docs/superpowers/plans/2026-06-30-garmin-personal-platform.md`
-- **Execution log**: `.superpowers/sdd/progress.md` (gitignored — see it for what each task committed and any per-task findings)
-- **Per-task subagent reports**: `.superpowers/sdd/task-*-report.md` (gitignored)
-- **Per-task review packages**: `.superpowers/sdd/review-*.diff` (gitignored)
+- **Specs**: `docs/superpowers/specs/` (platform design + /connect design)
+- **Plans**: `docs/superpowers/plans/`
+- **Execution log**: `.superpowers/sdd/progress.md` (gitignored — per-task commits, review findings, deploy debugging trail)
 
 ## Tooling assumed
 
 - Node 22+, pnpm (via corepack or `~/.npm-global/bin/pnpm`)
-- Python 3.13 for Vercel (locally 3.12 is fine for `bootstrap_garmin.py` + tests)
-- Vercel CLI on PATH (`~/.npm-global/bin/vercel` — PATH exported in `~/.zshrc`)
+- Python 3.12+ locally (`.venv` in repo root) for tests + local Garmin probing
+- Vercel CLI on PATH (`~/.npm-global/bin/vercel`)
 - `openssl` for rotating secrets
 
 ## Contact / credentials
 
 - Vercel account: `nuno-schollmayers-projects-48d1f4fd`
 - Neon project: `round-silence-25618427`
-- Garmin login: nunoscholly@gmail.com (used in bootstrap)
+- Garmin login: nunoscholly@gmail.com
 - Watch: Forerunner 945
