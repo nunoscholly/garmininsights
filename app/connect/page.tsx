@@ -19,7 +19,9 @@ export default function ConnectPage() {
   async function refreshStatus() {
     try {
       const res = await fetch("/api/connect/status");
-      setStatus(await res.json());
+      const data: Status = await res.json();
+      setStatus(data);
+      setConnected(data.connected);
     } catch {
       setStatus(null);
     }
