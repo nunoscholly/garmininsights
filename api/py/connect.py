@@ -1,6 +1,7 @@
 # api/py/connect.py
 import os
 import json
+import traceback
 from http.server import BaseHTTPRequestHandler
 
 import garth
@@ -49,6 +50,10 @@ class handler(BaseHTTPRequestHandler):
             result = attempt_connect(email, password)
             self._send(200, result)
         except garth.exc.GarthHTTPError:
+            traceback.print_exc()  # server-side only (Vercel function logs)
+            self._send(502, {"status": "error", "message": "Could not reach Garmin — try again"})
+        except garth.exc.GarthException:
             self._send(401, {"status": "error", "message": "Garmin rejected those credentials"})
         except Exception:
+            traceback.print_exc()  # server-side only
             self._send(502, {"status": "error", "message": "Could not reach Garmin — try again"})

@@ -1,6 +1,7 @@
 # tests/py/test_connect.py
 from types import SimpleNamespace
 import pytest
+import garth
 import connect
 
 
@@ -51,3 +52,11 @@ def test_attempt_connect_returns_mfa_required_and_stores_nothing(monkeypatch):
 
     assert result == {"status": "mfa_required"}
     assert stored["called"] is False
+
+
+def test_attempt_connect_propagates_garth_auth_error(monkeypatch):
+    def boom(e, p, return_on_mfa):
+        raise garth.exc.GarthException("bad creds")
+    monkeypatch.setattr(connect.garth, "login", boom)
+    with pytest.raises(garth.exc.GarthException):
+        connect.attempt_connect("me@example.com", "pw")

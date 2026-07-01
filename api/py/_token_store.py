@@ -1,3 +1,4 @@
+"""Shared encrypted-token write path for bootstrap and the /connect endpoint."""
 # api/py/_token_store.py
 import os
 import json
@@ -23,8 +24,11 @@ def store_tokens(email: str, oauth1, oauth2) -> int:
         if row:
             user_id = row[0]
         else:
-            cur.execute("SELECT id FROM users WHERE email = %s;", (email,))
-            user_id = cur.fetchone()[0]
+            cur.execute("SELECT id FROM users WHERE clerk_id = %s;", ("pending-clerk-link",))
+            row = cur.fetchone()
+            if row is None:
+                raise RuntimeError("users row missing after upsert")
+            user_id = row[0]
 
         cur.execute(
             """

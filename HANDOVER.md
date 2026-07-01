@@ -27,13 +27,20 @@ Next.js 16 App Router (Vercel)  ──reads──▶  Neon Postgres  ◀──wr
 | Phase | Task | Status |
 |---|---|---|
 | A | Vercel link + Neon + env vars + migration | ✅ done |
-| B | `python scripts/bootstrap_garmin.py` (interactive Garmin login + MFA) | 🟡 **user still needs to do** |
+| B | Open `<url>/connect`, enter access code (CRON_SECRET) + Garmin credentials; fallback: `python scripts/bootstrap_garmin.py` when Garmin throws an MFA/verification challenge | 🟡 **user still needs to do** |
 | C | `vercel deploy` then `vercel deploy --prod` | ⏳ pending Phase B |
 
 ## To resume
 
 ### If Phase B is not yet done
 
+**Primary path — web form:**
+1. Deploy a preview (`vercel deploy`) or run `vercel dev`.
+2. Open `<preview-url>/connect` in the browser.
+3. Enter the access code (value of `CRON_SECRET` from `.env.local`) and your Garmin email + password.
+4. On success the page shows "Connected" and a "Sync now" button — click it to verify tokens work.
+
+**Fallback — script (use when Garmin issues an MFA/verification challenge):**
 ```bash
 cd /Users/nunoschollmayer/Documents/GitHub/garmininsights
 source .venv/bin/activate
@@ -99,13 +106,18 @@ app/                          Next.js pages
   wellness/                   30d trends: RHR, BB wake, steps, calories, stress
   api/ingest/sync/route.ts    Proxy → Python handler (adds CRON_SECRET)
   api/ingest/status/route.ts  Latest ingest_run row for the "last sync" indicator
+  api/connect/status/route.ts Token presence check (connected + last_refreshed_at)
   layout.tsx                  Nav + sync button, no auth wrapping
+  connect/page.tsx            Gated Garmin login form + manual sync trigger
 
 api/py/                       Python Vercel Functions (python 3.13)
   ingest.py                   Main handler: CRON_SECRET check → _ingest(mode)
+  connect.py                  POST handler: CRON_SECRET gate → garth login → store tokens
+  _token_store.py             Shared encrypted-token write path (bootstrap + /connect)
   _garth_client.py            Load/refresh garth OAuth tokens from DB
   _persist.py                 Shapers + Jsonb-wrapped upserts
   _crypto.py                  AES-GCM for token storage
+  requirements.txt            Load-bearing for Vercel deploy (Python deps installed from it)
 
 db/
   schema.ts                   10 tables (Drizzle)
