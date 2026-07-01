@@ -1,14 +1,52 @@
 {
-  "trainingStatus": {
-    "statusKey": "productive"
+  "userId": 79235470,
+  "mostRecentVO2Max": {
+    "userId": 79235470,
+    "generic": {
+      "calendarDate": "2026-06-29",
+      "vo2MaxPreciseValue": 59.3,
+      "vo2MaxValue": 59.0,
+      "fitnessAge": null,
+      "maxMetCategory": 0
+    },
+    "cycling": null
   },
-  "acwr": {
-    "acuteLoad": 250.0,
-    "chronicLoad": 200.0
+  "mostRecentTrainingLoadBalance": {
+    "userId": 79235470,
+    "metricsTrainingLoadBalanceDTOMap": {
+      "3303302731": {
+        "calendarDate": "2026-06-29",
+        "deviceId": 3303302731,
+        "monthlyLoadAerobicLow": 1226.2109,
+        "monthlyLoadAerobicHigh": 927.29736,
+        "monthlyLoadAnaerobic": 402.9345,
+        "trainingBalanceFeedbackPhrase": "BALANCED"
+      }
+    }
   },
-  "vo2Max": 55.0,
-  "recoveryTime": 24,
-  "racePredictor": {
-    "fiveK": 1300
-  }
+  "mostRecentTrainingStatus": {
+    "userId": 79235470,
+    "latestTrainingStatusData": {
+      "3303302731": {
+        "calendarDate": "2026-06-29",
+        "sinceDate": "2026-06-24",
+        "weeklyTrainingLoad": 512,
+        "trainingStatus": 5,
+        "timestamp": 1782927905000,
+        "deviceId": 3303302731,
+        "loadTunnelMin": 446,
+        "loadTunnelMax": 988,
+        "loadLevelTrend": 1,
+        "sport": "RUNNING",
+        "subSport": "GENERIC",
+        "fitnessTrend": 2,
+        "trainingStatusFeedbackPhrase": "RECOVERY_BALANCED",
+        "trainingPaused": false,
+        "acuteTrainingLoadDTO": null
+      }
+    },
+    "recordedDevices": [],
+    "showSelector": false
+  },
+  "heatAltitudeAcclimationDTO": null
 }

@@ -29,6 +29,9 @@ def _record_run(mode: str, ok: bool, errors):
 def _ingest(mode: str):
     errors = []
     client = load_client(USER_ID)
+    # Garmin's user-scoped endpoints want the profile displayName (a UUID),
+    # not our internal user id — a numeric id returns a shell of nulls.
+    display_name = client.profile["displayName"]
     today = Date.today()
     targets = [today, today - timedelta(days=1)]  # always re-pull yesterday for late sleep data
 
@@ -36,17 +39,30 @@ def _ingest(mode: str):
         ds = d.isoformat()
         for name, path, persist in [
             ("wellness",
-             f"/usersummary-service/usersummary/daily/{USER_ID}?calendarDate={ds}",
+             f"/usersummary-service/usersummary/daily/{display_name}?calendarDate={ds}",
              persist_daily_wellness),
             ("sleep",
              f"/wellness-service/wellness/dailySleepData/me?date={ds}",
              persist_sleep),
             ("training_status",
-             f"/metrics-service/metrics/maxmet/latest/{USER_ID}",
+             f"/metrics-service/metrics/trainingstatus/aggregated/{ds}",
              persist_training_status),
         ]:
             try:
                 payload = client.connectapi(path)
+                if name == "wellness" and isinstance(payload, dict):
+                    # Stress + body-battery curves live on a separate endpoint;
+                    # merge them in under the keys shape_daily_wellness reads.
+                    try:
+                        stress = client.connectapi(f"/wellness-service/wellness/dailyStress/{ds}")
+                        if isinstance(stress, dict):
+                            payload = {
+                                **payload,
+                                "stressValuesArray": stress.get("stressValuesArray"),
+                                "bodyBatteryValuesArray": stress.get("bodyBatteryValuesArray"),
+                            }
+                    except Exception as e:
+                        errors.append({"date": ds, "endpoint": "stress_curves", "error": str(e)})
                 persist(USER_ID, ds, payload)
             except Exception as e:
                 errors.append({"date": ds, "endpoint": name, "error": str(e), "trace": traceback.format_exc()})

@@ -1,5 +1,6 @@
 # tests/py/test_persist.py
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 import pytest
 import _persist
@@ -25,13 +26,29 @@ def test_sleep_shape():
     )
     assert row["duration_total_sec"] > 0
     assert row["garmin_sleep_score"] is None or 0 <= row["garmin_sleep_score"] <= 100
+    # Garmin sends epoch millis; the DB column is timestamptz — the shaper must convert.
+    assert isinstance(row["start_ts"], datetime)
+    assert isinstance(row["end_ts"], datetime)
+    assert row["start_ts"].tzinfo is not None
+    assert row["end_ts"] > row["start_ts"]
 
 def test_training_status_shape():
+    # Fixture mirrors the real /metrics-service/metrics/trainingstatus/aggregated/{date}
+    # response (recorded 2026-07-01, values anonymized-ish).
     row = _persist.shape_training_status(
         user_id=1, date="2026-06-29",
         payload=load("training_status_2026-06-29.json"),
     )
-    assert row["status"] in {"productive", "maintaining", "strained", "peaking", "detraining", "unproductive", "overreaching", "recovery", None}
+    # RECOVERY_BALANCED → "recovery" (first token, lowered) so StatusPill colors match
+    assert row["status"] == "recovery"
+    assert row["vo2_max"] == 59.0
+    assert row["acute_load"] == 512
+
+def test_training_status_shape_empty_payload():
+    # Devices can be missing (e.g. no recent sync) — shaper must not crash.
+    row = _persist.shape_training_status(user_id=1, date="2026-06-29", payload={})
+    assert row["status"] is None
+    assert row["vo2_max"] is None
 
 def test_activity_shape():
     row = _persist.shape_activity(

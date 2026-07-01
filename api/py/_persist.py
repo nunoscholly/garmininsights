@@ -1,11 +1,16 @@
 # api/py/_persist.py
 import os
 import json
+from datetime import datetime, timezone
 import psycopg
 from psycopg.types.json import Jsonb
 
 def _jb(x):
     return Jsonb(x) if x is not None else None
+
+def _ms_to_dt(ms):
+    """Garmin timestamps are epoch millis; DB columns are timestamptz."""
+    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc) if ms else None
 
 def _db():
     return psycopg.connect(os.environ["DATABASE_URL"])
@@ -39,8 +44,8 @@ def shape_sleep(user_id: int, date: str, payload: dict) -> dict:
     return {
         "user_id": user_id,
         "date": date,
-        "start_ts": s.get("sleepStartTimestampGMT"),
-        "end_ts": s.get("sleepEndTimestampGMT"),
+        "start_ts": _ms_to_dt(s.get("sleepStartTimestampGMT")),
+        "end_ts": _ms_to_dt(s.get("sleepEndTimestampGMT")),
         "duration_total_sec": s.get("sleepTimeSeconds") or 0,
         "duration_deep_sec": s.get("deepSleepSeconds"),
         "duration_light_sec": s.get("lightSleepSeconds"),
@@ -55,15 +60,23 @@ def shape_sleep(user_id: int, date: str, payload: dict) -> dict:
     }
 
 def shape_training_status(user_id: int, date: str, payload: dict) -> dict:
+    # Payload: /metrics-service/metrics/trainingstatus/aggregated/{date}.
+    # Per-device data lives under mostRecentTrainingStatus.latestTrainingStatusData,
+    # keyed by device id — take the first device (single-watch assumption).
+    devices = (payload.get("mostRecentTrainingStatus") or {}).get("latestTrainingStatusData") or {}
+    dev = next(iter(devices.values()), {}) if isinstance(devices, dict) else {}
+    phrase = dev.get("trainingStatusFeedbackPhrase")  # e.g. "RECOVERY_BALANCED"
+    vo2 = (payload.get("mostRecentVO2Max") or {}).get("generic") or {}
     return {
         "user_id": user_id,
         "date": date,
-        "status": (payload.get("trainingStatus") or {}).get("statusKey"),
-        "acute_load": (payload.get("acwr") or {}).get("acuteLoad"),
-        "chronic_load": (payload.get("acwr") or {}).get("chronicLoad"),
-        "vo2_max": payload.get("vo2Max"),
-        "recovery_time_hours": payload.get("recoveryTime"),
-        "race_predictor": _jb(payload.get("racePredictor")),
+        # "RECOVERY_BALANCED" → "recovery": first token, lowered, to match StatusPill keys
+        "status": phrase.split("_")[0].lower() if phrase else None,
+        "acute_load": dev.get("weeklyTrainingLoad"),
+        "chronic_load": None,  # not present in the aggregated payload
+        "vo2_max": vo2.get("vo2MaxValue"),
+        "recovery_time_hours": None,  # not present in the aggregated payload
+        "race_predictor": None,  # not present in the aggregated payload
     }
 
 def shape_activity(user_id: int, payload: dict) -> dict:
