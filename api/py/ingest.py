@@ -1,8 +1,12 @@
 # api/py/ingest.py
-import os, json, traceback
+import os, sys, json, traceback
 from datetime import date as Date, datetime, timezone, timedelta
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+
+# Vercel's Python runtime loads this entrypoint by absolute path without adding
+# its directory to sys.path, so sibling imports (_garth_client etc.) need this.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import psycopg
 from _garth_client import load_client

@@ -1,8 +1,13 @@
 # api/py/connect.py
 import os
+import sys
 import json
 import traceback
 from http.server import BaseHTTPRequestHandler
+
+# Vercel's Python runtime loads this entrypoint by absolute path without adding
+# its directory to sys.path, so sibling imports (_token_store etc.) need this.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import garth
 from _token_store import store_tokens
