@@ -73,6 +73,9 @@ def shape_training_status(user_id: int, date: str, payload: dict) -> dict:
         # "RECOVERY_BALANCED" → "recovery": first token, lowered, to match StatusPill keys
         "status": phrase.split("_")[0].lower() if phrase else None,
         "acute_load": dev.get("weeklyTrainingLoad"),
+        "weekly_training_load": dev.get("weeklyTrainingLoad"),
+        "load_tunnel_min": dev.get("loadTunnelMin"),
+        "load_tunnel_max": dev.get("loadTunnelMax"),
         "chronic_load": None,  # not present in the aggregated payload
         "vo2_max": vo2.get("vo2MaxValue"),
         "recovery_time_hours": None,  # not present in the aggregated payload

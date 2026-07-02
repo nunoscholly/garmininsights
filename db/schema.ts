@@ -86,6 +86,9 @@ export const trainingStatus = pgTable("training_status", {
   vo2Max: real("vo2_max"),
   recoveryTimeHours: integer("recovery_time_hours"),
   racePredictor: jsonb("race_predictor"),
+  weeklyTrainingLoad: real("weekly_training_load"),
+  loadTunnelMin: real("load_tunnel_min"),
+  loadTunnelMax: real("load_tunnel_max"),
 });
 
 export const ingestRuns = pgTable("ingest_runs", {

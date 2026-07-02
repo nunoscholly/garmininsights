@@ -43,12 +43,19 @@ def test_training_status_shape():
     assert row["status"] == "recovery"
     assert row["vo2_max"] == 59.0
     assert row["acute_load"] == 512
+    # Garmin load tunnel (optimal 7-day load range) — spec 2026-07-02
+    assert row["weekly_training_load"] == 512
+    assert row["load_tunnel_min"] == 446
+    assert row["load_tunnel_max"] == 988
 
 def test_training_status_shape_empty_payload():
     # Devices can be missing (e.g. no recent sync) — shaper must not crash.
     row = _persist.shape_training_status(user_id=1, date="2026-06-29", payload={})
     assert row["status"] is None
     assert row["vo2_max"] is None
+    assert row["weekly_training_load"] is None
+    assert row["load_tunnel_min"] is None
+    assert row["load_tunnel_max"] is None
 
 def test_activity_shape():
     row = _persist.shape_activity(
