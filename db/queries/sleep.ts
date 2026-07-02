@@ -1,5 +1,6 @@
 import { db, sleepSessions } from "@/db";
 import { desc, gte } from "drizzle-orm";
+import { baselineOf } from "@/lib/insights/baseline";
 
 export async function getSleepOverview() {
   try {
@@ -24,9 +25,16 @@ export async function getSleepOverview() {
         )
       : 0;
 
-    return { lastNight, history: rows.slice().reverse(), debt, avg30 };
+    return {
+      lastNight,
+      history: rows.slice().reverse(),
+      debt,
+      avg30,
+      prevNight: rows[1] ?? null,
+      scoreBaseline: baselineOf(rows.slice(1).map((r) => r.garminSleepScore)),
+    };
   } catch (error) {
     console.error("Error fetching sleep overview:", error);
-    return { lastNight: null, history: [], debt: 0, avg30: 0 };
+    return { lastNight: null, history: [], debt: 0, avg30: 0, prevNight: null, scoreBaseline: null };
   }
 }

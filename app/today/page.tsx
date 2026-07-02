@@ -13,7 +13,11 @@ export default async function TodayPage() {
   try {
     data = await getTodayData();
   } catch {
-    data = { w: null, s: null, t: null, lastActivities: [] };
+    data = {
+      w: null, s: null, t: null, lastActivities: [],
+      baselines: { bbWake: null, rhr: null, steps: null, calories: null, stress: null, sleepScore: null },
+      prevNight: null,
+    };
   }
   const { w, s, t } = data;
 
