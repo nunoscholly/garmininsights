@@ -1,8 +1,9 @@
 "use client";
 import { motion } from "framer-motion";
 
-export function HeroNumber({ value, label, color, suffix }: {
+export function HeroNumber({ value, label, color, suffix, sub }: {
   value: string | number; label: string; color: string; suffix?: string;
+  sub?: React.ReactNode;
 }) {
   return (
     <motion.div
@@ -14,6 +15,7 @@ export function HeroNumber({ value, label, color, suffix }: {
         {value}{suffix && <span className="text-3xl ml-1 opacity-60">{suffix}</span>}
       </div>
       <div className="text-fg-dim uppercase tracking-widest text-xs">{label}</div>
+      {sub && <div>{sub}</div>}
     </motion.div>
   );
 }

@@ -14,3 +14,16 @@ export const fmtPace = (mPerS: number | null | undefined) => {
   const s = Math.round(secPerKm % 60).toString().padStart(2, "0");
   return `${m}:${s} /km`;
 };
+
+export const fmtSigned = (n: number, digits = 0) => {
+  const s = n.toFixed(digits);
+  return n > 0 && !s.startsWith("-") ? `+${s}` : s;
+};
+
+export const fmtSignedMin = (sec: number) => {
+  const sign = sec > 0 ? "+" : sec < 0 ? "−" : "";
+  const abs = Math.abs(sec);
+  const h = Math.floor(abs / 3600);
+  const m = Math.round((abs % 3600) / 60);
+  return sign + (h ? `${h}h ${m}m` : `${m}m`);
+};
