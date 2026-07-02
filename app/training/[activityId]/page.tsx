@@ -3,6 +3,8 @@ import { MetricCard } from "@/components/cards/metric-card";
 import { TrendLine } from "@/components/charts/trend-line";
 import { fmtMin, fmtPace } from "@/lib/format";
 import { notFound } from "next/navigation";
+import { HrZonesBar } from "@/components/charts/hr-zones-bar";
+import { hrZonesFromRawSummary } from "@/lib/insights/hr-zones";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,8 @@ export default async function ActivityPage({
   const { activityId } = await params;
   const { a, samples } = await getActivity(activityId);
   if (!a) notFound();
+
+  const hrZones = hrZonesFromRawSummary(a.rawSummary);
 
   const hrSeries = samples?.samples as { ts?: number[]; hr?: number[] } | null;
   const hrData =
@@ -51,6 +55,12 @@ export default async function ActivityPage({
           {a.trainingEffectAnaerobic?.toFixed(1) ?? "–"}
         </MetricCard>
       </div>
+
+      {hrZones && (
+        <MetricCard title="Time in HR zones" accent="text-magenta">
+          <HrZonesBar zones={hrZones} />
+        </MetricCard>
+      )}
 
       {hrData.length > 0 && (
         <MetricCard title="Heart rate" accent="text-magenta">
