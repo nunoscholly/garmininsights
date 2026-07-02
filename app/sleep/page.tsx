@@ -4,16 +4,22 @@ import { MetricCard } from "@/components/cards/metric-card";
 import { SleepStagesBar } from "@/components/charts/sleep-stages-bar";
 import { TrendLine } from "@/components/charts/trend-line";
 import { ConsistencyHeatmap } from "@/components/charts/consistency-heatmap";
-import { fmtMin } from "@/lib/format";
+import { DeltaBadge } from "@/components/cards/delta-badge";
+import { deltaOf } from "@/lib/insights/baseline";
+import { zoneFor } from "@/lib/insights/zones";
+import { SLEEP_TARGET_SEC } from "@/lib/insights/targets";
+import { fmtMin, fmtSignedMin } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function SleepPage() {
-  const { lastNight, history, debt, avg30 } = await getSleepOverview();
+  const { lastNight, history, debt, avg30, prevNight, scoreBaseline } = await getSleepOverview();
   const trend = history.map((r) => ({
     date: r.date.slice(5),
     v: (r.durationTotalSec ?? 0) / 3600,
   }));
+  const scoreZone = zoneFor("sleepScore", lastNight?.garminSleepScore);
+  const sleepPct = Math.min(100, ((lastNight?.durationTotalSec ?? 0) / SLEEP_TARGET_SEC) * 100);
 
   return (
     <div className="space-y-8 max-w-6xl">
@@ -23,12 +29,26 @@ export default async function SleepPage() {
         <HeroNumber
           value={lastNight?.garminSleepScore ?? "–"}
           label="last night score"
-          color="text-cyan"
+          color={scoreZone?.textClass ?? "text-cyan"}
+          sub={<DeltaBadge delta={deltaOf(lastNight?.garminSleepScore, scoreBaseline)} good="higher" vs="30d avg" />}
         />
         <HeroNumber
           value={fmtMin(lastNight?.durationTotalSec)}
           label="last night duration"
           color="text-cyan"
+          sub={
+            <div className="space-y-1">
+              <div className="h-1 w-32 rounded-full bg-ink-3 overflow-hidden">
+                <div className="h-full bg-cyan" style={{ width: `${sleepPct}%` }} />
+              </div>
+              <DeltaBadge
+                delta={deltaOf(lastNight?.durationTotalSec, prevNight?.durationTotalSec)}
+                good="higher"
+                vs="prev night"
+                fmt={fmtSignedMin}
+              />
+            </div>
+          }
         />
         <HeroNumber
           value={fmtMin(avg30)}
@@ -63,7 +83,13 @@ export default async function SleepPage() {
       </MetricCard>
 
       <MetricCard title="30-day duration trend (h)" accent="text-cyan">
-        <TrendLine data={trend} dataKey="v" color="#5cf2ff" />
+        <TrendLine
+          data={trend}
+          dataKey="v"
+          color="#5cf2ff"
+          unit="h"
+          referenceLine={{ value: SLEEP_TARGET_SEC / 3600, label: "8h target" }}
+        />
       </MetricCard>
 
       <MetricCard title="Consistency (last 30 days)" accent="text-cyan">
