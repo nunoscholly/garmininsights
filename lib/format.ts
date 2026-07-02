@@ -17,7 +17,8 @@ export const fmtPace = (mPerS: number | null | undefined) => {
 
 export const fmtSigned = (n: number, digits = 0) => {
   const s = n.toFixed(digits);
-  return n > 0 && !s.startsWith("-") ? `+${s}` : s;
+  if (Number(s) === 0) return (0).toFixed(digits); // -0.4 at 0 digits rounds to "0", not "-0"
+  return s.startsWith("-") ? s : `+${s}`;
 };
 
 export const fmtSignedMin = (sec: number) => {

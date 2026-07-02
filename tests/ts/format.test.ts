@@ -13,6 +13,10 @@ describe("fmtSigned", () => {
   test("rounds to digits", () => {
     expect(fmtSigned(3.7)).toBe("+4");
   });
+  test("values that round to zero lose the sign", () => {
+    expect(fmtSigned(-0.4)).toBe("0");
+    expect(fmtSigned(-0.04, 1)).toBe("0.0");
+  });
 });
 
 describe("fmtSignedMin", () => {
