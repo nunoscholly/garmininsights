@@ -35,6 +35,11 @@ describe("zoneFor — Garmin band boundaries", () => {
     expect(zoneFor("sleepScore", null)).toBeNull();
     expect(zoneFor("stress", undefined)).toBeNull();
   });
+  test("fractional values between integer bands do not fall through gaps", () => {
+    expect(zoneFor("sleepScore", 79.5)?.label).toBe("fair");
+    expect(zoneFor("bodyBattery", 49.7)?.label).toBe("low");
+    expect(zoneFor("stress", 25.5)?.label).toBe("rest");
+  });
 });
 
 describe("deltaTextClass — goodness direction", () => {

@@ -28,7 +28,7 @@ const ZONES: Record<ZoneMetric, { min: number; max: number; label: string; tier:
 
 export function zoneFor(metric: ZoneMetric, value: number | null | undefined): Zone | null {
   if (typeof value !== "number") return null;
-  const z = ZONES[metric].find((b) => value >= b.min && value <= b.max);
+  const z = ZONES[metric].find((b) => value >= b.min && value < b.max + 1);
   return z ? { label: z.label, textClass: TIER_CLASSES[z.tier] } : null;
 }
 
