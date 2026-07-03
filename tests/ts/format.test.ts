@@ -29,4 +29,11 @@ describe("fmtSignedMin", () => {
   test("zero", () => {
     expect(fmtSignedMin(0)).toBe("0m");
   });
+  test("minute rollover carries into hours", () => {
+    expect(fmtSignedMin(7170)).toBe("+2h 0m");
+    expect(fmtSignedMin(3585)).toBe("+1h 0m");
+  });
+  test("sub-30s deltas round to unsigned 0m", () => {
+    expect(fmtSignedMin(-20)).toBe("0m");
+  });
 });

@@ -39,6 +39,8 @@ export function deltaTextClass(delta: number, good: Goodness): string {
 }
 
 // Background bands for the stress trend chart (Recharts ReferenceArea fills).
+// Boundaries deliberately touch (25/50/75) for a continuous fill — unlike the
+// discrete ZONES.stress tiers (…-25, 26-50, …) used for point classification.
 export const STRESS_BANDS = [
   { from: 0, to: 25, color: "#b6ff39" },
   { from: 25, to: 50, color: "#f5e6c8" },

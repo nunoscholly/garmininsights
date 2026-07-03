@@ -30,6 +30,7 @@ export function TrendLine({
             fill={b.color}
             fillOpacity={0.07}
             stroke="none"
+            ifOverflow="extendDomain"
           />
         ))}
         <XAxis dataKey="date" tick={{ fill: "#9a9aa3", fontSize: 11 }} />
@@ -46,6 +47,7 @@ export function TrendLine({
             y={referenceLine.value}
             stroke="#9a9aa3"
             strokeDasharray="4 4"
+            ifOverflow="extendDomain"
             label={
               referenceLine.label
                 ? { value: referenceLine.label, fill: "#9a9aa3", fontSize: 10, position: "insideTopRight" }
