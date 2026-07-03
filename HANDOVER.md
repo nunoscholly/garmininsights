@@ -109,13 +109,20 @@ db/
   queries/                    Per-page query fns (today, training, sleep, wellness)
 
 components/
-  cards/                      hero-number, metric-card, status-pill, sync-button
-  charts/                     body-battery-curve, sleep-stages-bar, weekly-load-bar,
-                              trend-line, consistency-heatmap
+  cards/                      hero-number (opt. sub slot), metric-card, status-pill,
+                              sync-button, delta-badge (▲/▼ vs baseline)
+  charts/                     body-battery-curve, sleep-stages-bar, weekly-load-bar
+                              (opt. tunnel band), trend-line (opt. zoneBands/
+                              referenceLine/unit), hr-zones-bar, consistency-heatmap
   nav/side-nav.tsx            Fixed sidebar (/connect intentionally unlinked)
   theme/metric-colors.ts      Per-metric color tokens
 
 lib/                          env, dates (Europe/Berlin), format helpers
+lib/insights/                 Insight math (vitest-tested): baseline.ts (trailing avg,
+                              null under 3 days), zones.ts (Garmin zone bands +
+                              goodness coloring), hr-zones.ts (extract hrTimeInZone
+                              from rawSummary), targets.ts (8h sleep, VO2 threshold)
+tests/ts/                     Vitest unit tests for lib/insights + format (pnpm test)
 scripts/
   bootstrap_garmin.py         Terminal Garmin login (MFA fallback only)
 
@@ -132,7 +139,9 @@ docs/superpowers/
 
 - **Activity HR chart is empty** on activity detail pages. The page expects `samples.samples.{ts, hr}` arrays but ingestion stores Garmin's raw `metricDescriptors + activityDetailMetrics` shape. Fix: derive `ts[]`/`hr[]` in ingest persistence or page render. Low priority — Garmin Connect does activity detail well.
 - **Remaining synthetic fixtures**: `daily_wellness`, `sleep`, `activity_summary` fixtures are still hand-written (though shapes verified against live API). `training_status` fixture is already real.
-- **`training_status` chronic_load / recovery_time / race_predictor columns are always NULL** — the aggregated endpoint doesn't carry them; find endpoints if ever wanted.
+- **Early-morning sync marks the run `ok=false`**: syncing "today" before the watch uploads sleep yields an empty sleep payload → `start_ts` NOT NULL violation on `sleep_sessions` insert. Everything else in the run persists fine; the missing night lands on the next sync. Fix: skip persist when `sleepTimeSeconds` is absent in `_persist.py`/`ingest.py`.
+- **`training_status` chronic_load / recovery_time / race_predictor columns are always NULL** — the aggregated endpoint doesn't carry them; find endpoints if ever wanted. (`weekly_training_load` / `load_tunnel_min` / `load_tunnel_max` ARE persisted since 2026-07-03 — the Training page draws the optimal-load band from them.)
+- **Insight-layer follow-up minors** (from review, none load-bearing): VO₂max trend arrow uses the 56d statusHistory window (spec said 30d); "7d avg" baselines are really "last 7 recorded days" (no date floor); sleep 8h progress bar renders empty when no sleep row; sub-30s HR zones label "0m"; DeltaBadge lacks component tests.
 - Queries don't filter by `user_id` (single-user assumption).
 - Vercel builds with Python 3.12 despite `requires-python >= 3.13` (harmless — matches local venv; add a `.python-version` to pin explicitly if desired).
 - Deferred review minors: constant-time secret compare (`hmac.compare_digest`) for both endpoints; `autoComplete` hints on the /connect form; try/catch on status route DB call; `store_tokens` lacks a DB-fixture test.
@@ -151,7 +160,7 @@ docs/superpowers/
 
 ## Tooling assumed
 
-- Node 22+, pnpm (via corepack or `~/.npm-global/bin/pnpm`)
+- Node 22+, pnpm (via corepack or `~/.npm-global/bin/pnpm`); `pnpm test` runs the vitest suite
 - Python 3.12+ locally (`.venv` in repo root) for tests + local Garmin probing
 - Vercel CLI on PATH (`~/.npm-global/bin/vercel`)
 - `openssl` for rotating secrets
